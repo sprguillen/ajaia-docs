@@ -163,3 +163,41 @@ export async function updateDocument(
   if (error) throw error;
   return toDocument(data as DocumentRow);
 }
+
+export async function getDocumentShares(documentId: DocumentId): Promise<User[]> {
+  const { data, error } = await supabase
+    .from("document_shares")
+    .select("users(*)")
+    .eq("document_id", documentId);
+
+  if (error) throw error;
+
+  return (data as unknown as { users: UserRow | null }[])
+    .map((row) => row.users)
+    .filter((row): row is UserRow => row !== null)
+    .map(toUser);
+}
+
+export async function shareDocument(
+  documentId: DocumentId,
+  userId: UserId
+): Promise<void> {
+  const { error } = await supabase
+    .from("document_shares")
+    .insert({ document_id: documentId, user_id: userId });
+
+  if (error) throw error;
+}
+
+export async function unshareDocument(
+  documentId: DocumentId,
+  userId: UserId
+): Promise<void> {
+  const { error } = await supabase
+    .from("document_shares")
+    .delete()
+    .eq("document_id", documentId)
+    .eq("user_id", userId);
+
+  if (error) throw error;
+}

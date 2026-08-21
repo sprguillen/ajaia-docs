@@ -4,13 +4,14 @@ import { use, useCallback, useEffect, useRef, useState } from "react";
 import type { ChangeEvent } from "react";
 import Link from "next/link";
 import RichTextEditor from "@/components/RichTextEditor";
+import ShareDialog from "@/components/ShareDialog";
 import { getStoredUserId } from "@/lib/current-user";
-import { getDocumentById, updateDocument } from "@/lib/supabase";
-import type { TipTapDocument } from "@/lib/types";
+import { getDocumentById, getUsers, updateDocument } from "@/lib/supabase";
+import type { TipTapDocument, User, UserId } from "@/lib/types";
 
 type LoadResult =
   | { status: "denied" }
-  | { status: "ready"; content: TipTapDocument };
+  | { status: "ready"; content: TipTapDocument; ownerId: UserId; isOwner: boolean };
 type SaveStatus = "idle" | "saving" | "saved";
 
 const AUTOSAVE_DELAY_MS = 750;
@@ -23,6 +24,8 @@ export default function DocumentPage({
   const [loadResult, setLoadResult] = useState<LoadResult | null>(null);
   const [title, setTitle] = useState("");
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
+  const [users, setUsers] = useState<User[]>([]);
+  const [isShareDialogOpen, setIsShareDialogOpen] = useState(false);
 
   // Holds the latest edited content for autosave. Only ever written from
   // event handlers/callbacks and read from event handlers/timeouts — never
@@ -48,13 +51,31 @@ export default function DocumentPage({
 
       setTitle(document.title);
       latestContentRef.current = document.content;
-      setLoadResult({ status: "ready", content: document.content });
+      setLoadResult({
+        status: "ready",
+        content: document.content,
+        ownerId: document.ownerId,
+        isOwner: document.ownerId === userId,
+      });
     });
 
     return () => {
       isMounted = false;
     };
   }, [documentId]);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    getUsers().then((fetchedUsers) => {
+      if (!isMounted) return;
+      setUsers(fetchedUsers);
+    });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   useEffect(() => {
     return () => {
@@ -116,6 +137,8 @@ export default function DocumentPage({
     );
   }
 
+  const ownerName = users.find((user) => user.id === loadResult.ownerId)?.name;
+
   return (
     <div className="flex flex-1 flex-col bg-zinc-50 dark:bg-black">
       <header className="border-b border-black/8 dark:border-white/10">
@@ -126,10 +149,25 @@ export default function DocumentPage({
           >
             ← Dashboard
           </Link>
-          <span className="text-sm text-zinc-500 dark:text-zinc-400">
-            {saveStatus === "saving" && "Saving…"}
-            {saveStatus === "saved" && "Saved ✓"}
-          </span>
+          <div className="flex items-center gap-4">
+            <span className="text-sm text-zinc-500 dark:text-zinc-400">
+              {saveStatus === "saving" && "Saving…"}
+              {saveStatus === "saved" && "Saved ✓"}
+            </span>
+            {loadResult.isOwner ? (
+              <button
+                type="button"
+                onClick={() => setIsShareDialogOpen(true)}
+                className="rounded-full border border-black/8 px-3 py-1.5 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-100 dark:border-white/10 dark:text-zinc-300 dark:hover:bg-zinc-800"
+              >
+                Share
+              </button>
+            ) : (
+              <span className="text-sm text-zinc-500 dark:text-zinc-400">
+                Owned by {ownerName ?? "…"}
+              </span>
+            )}
+          </div>
         </div>
       </header>
 
@@ -145,6 +183,15 @@ export default function DocumentPage({
           onChange={handleContentChange}
         />
       </main>
+
+      {isShareDialogOpen && (
+        <ShareDialog
+          documentId={documentId}
+          ownerId={loadResult.ownerId}
+          users={users}
+          onClose={() => setIsShareDialogOpen(false)}
+        />
+      )}
     </div>
   );
 }
