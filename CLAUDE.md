@@ -38,3 +38,13 @@ Schema lives in the Supabase project itself — there's no `supabase/` directory
 
 - Don't bump `eslint` past `^9`. `eslint-config-next@16.3.1` (pinned to the installed Next version) bundles `eslint-plugin-react`, which calls a context API that ESLint 10 removed — installing `eslint@10` makes `npm run lint` fail outright with `contextOrFilename.getFilename is not a function`. `eslint@9.39.5` is the last 9.x release and is EOL, so `npm install` will always print an "is no longer supported" deprecation warning for it — that's cosmetic and unavoidable until Next.js ships an ESLint-10-compatible `eslint-config-next`.
 - The Supabase JS client has no `Database` generic here, so embedded-relation selects (e.g. `document_shares.select("documents(*)")` in `getDocumentsForUser`) come back typed as `{ documents: any[] }[]` regardless of actual cardinality. Cast through `unknown` first (as `getDocumentsForUser` does) rather than casting directly — TS rejects the direct cast as non-overlapping.
+
+<!-- BEGIN:nextjs-agent-rules -->
+
+# This is NOT the Next.js you know
+
+This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` (resolved from this file's directory; in monorepos the `next` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
+
+This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
+
+<!-- END:nextjs-agent-rules -->

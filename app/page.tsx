@@ -1,68 +1,132 @@
-import Image from "next/image";
+"use client";
+
+import { useCallback, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import DocumentList from "@/components/DocumentList";
+import UserSwitcher from "@/components/UserSwitcher";
+import { createDocument, getDocumentsForUser, getUsers } from "@/lib/supabase";
+import type { DocumentSummary, User, UserId } from "@/lib/types";
+
+const CURRENT_USER_STORAGE_KEY = "ajaia-docs:current-user-id";
 
 export default function Home() {
+  const router = useRouter();
+  const [users, setUsers] = useState<User[]>([]);
+  const [currentUserId, setCurrentUserId] = useState<UserId | null>(null);
+  const [isLoadingUsers, setIsLoadingUsers] = useState(true);
+  const [documents, setDocuments] = useState<DocumentSummary[]>([]);
+  const [documentsUserId, setDocumentsUserId] = useState<UserId | null>(null);
+  const [isCreating, setIsCreating] = useState(false);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    getUsers().then((fetchedUsers) => {
+      if (!isMounted) return;
+
+      const storedUserId = window.localStorage.getItem(CURRENT_USER_STORAGE_KEY);
+      const initialUserId =
+        fetchedUsers.find((user) => user.id === storedUserId)?.id ??
+        fetchedUsers[0]?.id ??
+        null;
+
+      setUsers(fetchedUsers);
+      setCurrentUserId(initialUserId);
+      setIsLoadingUsers(false);
+    });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!currentUserId) return;
+
+    let isMounted = true;
+
+    getDocumentsForUser(currentUserId).then((fetchedDocuments) => {
+      if (!isMounted) return;
+      setDocuments(fetchedDocuments);
+      setDocumentsUserId(currentUserId);
+    });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [currentUserId]);
+
+  const isLoadingDocuments =
+    currentUserId !== null && documentsUserId !== currentUserId;
+
+  const handleUserChange = useCallback((userId: UserId) => {
+    setCurrentUserId(userId);
+    window.localStorage.setItem(CURRENT_USER_STORAGE_KEY, userId);
+  }, []);
+
+  const handleNewDocument = useCallback(async () => {
+    if (!currentUserId) return;
+
+    setIsCreating(true);
+    try {
+      const document = await createDocument(currentUserId);
+      router.push(`/documents/${document.id}`);
+    } finally {
+      setIsCreating(false);
+    }
+  }, [currentUserId, router]);
+
+  const myDocuments = documents.filter((document) => document.access === "owner");
+  const sharedDocuments = documents.filter(
+    (document) => document.access === "shared"
+  );
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert h-5 w-[100px]"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the{" "}
-            <code className="rounded bg-black/[.06] px-1.5 py-0.5 font-mono text-[0.9em] dark:bg-white/[.08]">
-              page.tsx
-            </code>{" "}
-            file.
+    <div className="flex flex-1 flex-col bg-zinc-50 dark:bg-black">
+      <header className="border-b border-black/8 dark:border-white/10">
+        <div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-4">
+          <h1 className="text-lg font-semibold text-zinc-950 dark:text-zinc-50">
+            Ajaia Docs
           </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+          <UserSwitcher
+            users={users}
+            currentUserId={currentUserId}
+            onChange={handleUserChange}
+            isLoading={isLoadingUsers}
+          />
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+      </header>
+
+      <main className="mx-auto w-full max-w-5xl flex-1 px-6 py-10">
+        <div className="mb-6 flex items-center justify-between gap-4">
+          <h2 className="text-xl font-semibold text-zinc-950 dark:text-zinc-50">
+            My Documents
+          </h2>
+          <button
+            type="button"
+            onClick={handleNewDocument}
+            disabled={!currentUserId || isCreating}
+            className="shrink-0 rounded-full bg-zinc-950 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-white dark:text-black dark:hover:bg-zinc-200"
           >
-            <Image
-              className="dark:invert h-[14px] w-4"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={14}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+            {isCreating ? "Creating…" : "+ New Document"}
+          </button>
         </div>
+        <DocumentList
+          documents={myDocuments}
+          users={users}
+          isLoading={isLoadingDocuments}
+          emptyMessage="You haven't created any documents yet."
+        />
+
+        <h2 className="mb-6 mt-12 text-xl font-semibold text-zinc-950 dark:text-zinc-50">
+          Shared With Me
+        </h2>
+        <DocumentList
+          documents={sharedDocuments}
+          users={users}
+          isLoading={isLoadingDocuments}
+          emptyMessage="No documents have been shared with you yet."
+        />
       </main>
     </div>
   );
