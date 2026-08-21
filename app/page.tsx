@@ -4,10 +4,9 @@ import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import DocumentList from "@/components/DocumentList";
 import UserSwitcher from "@/components/UserSwitcher";
+import { getStoredUserId, setStoredUserId } from "@/lib/current-user";
 import { createDocument, getDocumentsForUser, getUsers } from "@/lib/supabase";
 import type { DocumentSummary, User, UserId } from "@/lib/types";
-
-const CURRENT_USER_STORAGE_KEY = "ajaia-docs:current-user-id";
 
 export default function Home() {
   const router = useRouter();
@@ -24,7 +23,7 @@ export default function Home() {
     getUsers().then((fetchedUsers) => {
       if (!isMounted) return;
 
-      const storedUserId = window.localStorage.getItem(CURRENT_USER_STORAGE_KEY);
+      const storedUserId = getStoredUserId();
       const initialUserId =
         fetchedUsers.find((user) => user.id === storedUserId)?.id ??
         fetchedUsers[0]?.id ??
@@ -61,7 +60,7 @@ export default function Home() {
 
   const handleUserChange = useCallback((userId: UserId) => {
     setCurrentUserId(userId);
-    window.localStorage.setItem(CURRENT_USER_STORAGE_KEY, userId);
+    setStoredUserId(userId);
   }, []);
 
   const handleNewDocument = useCallback(async () => {

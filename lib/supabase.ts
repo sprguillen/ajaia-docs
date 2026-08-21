@@ -140,3 +140,26 @@ export async function getDocumentById(
 
   return share ? document : null;
 }
+
+export interface DocumentUpdate {
+  title: string;
+  content: TipTapDocument;
+}
+
+export async function updateDocument(
+  documentId: DocumentId,
+  updates: DocumentUpdate
+): Promise<Document> {
+  const { data, error } = await supabase
+    .from("documents")
+    .update({
+      title: updates.title,
+      content: updates.content,
+    })
+    .eq("id", documentId)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return toDocument(data as DocumentRow);
+}
