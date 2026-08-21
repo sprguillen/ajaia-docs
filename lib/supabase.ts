@@ -1,4 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
+import { canAccessDocument } from "./access";
 import type {
   Document,
   DocumentId,
@@ -146,7 +147,9 @@ export async function getDocumentById(
 
   if (shareError) throw shareError;
 
-  return share ? document : null;
+  return canAccessDocument(document.ownerId, userId, Boolean(share))
+    ? document
+    : null;
 }
 
 export interface DocumentUpdate {
