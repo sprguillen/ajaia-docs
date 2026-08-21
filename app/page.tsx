@@ -7,8 +7,8 @@ import DocumentList from "@/components/DocumentList";
 import UserSwitcher from "@/components/UserSwitcher";
 import { getStoredUserId, setStoredUserId } from "@/lib/current-user";
 import {
-  SUPPORTED_IMPORT_EXTENSIONS,
   getFileExtension,
+  getImportValidationError,
   textToTipTapDocument,
 } from "@/lib/import";
 import { createDocument, getDocumentsForUser, getUsers } from "@/lib/supabase";
@@ -89,9 +89,9 @@ export default function Home() {
     event.target.value = "";
     if (!file || !currentUserId) return;
 
-    const extension = getFileExtension(file.name);
-    if (!SUPPORTED_IMPORT_EXTENSIONS.includes(extension)) {
-      setImportError("Only .txt and .md files can be imported.");
+    const validationError = getImportValidationError(file);
+    if (validationError) {
+      setImportError(validationError);
       return;
     }
 
@@ -99,6 +99,7 @@ export default function Home() {
     setIsImporting(true);
     try {
       const text = await file.text();
+      const extension = getFileExtension(file.name);
       const title = file.name.slice(0, -extension.length) || "Untitled Document";
       const document = await createDocument(currentUserId, {
         title,
