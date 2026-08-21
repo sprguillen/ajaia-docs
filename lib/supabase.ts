@@ -95,12 +95,20 @@ export async function getDocumentsForUser(
   ];
 }
 
-export async function createDocument(ownerId: UserId): Promise<Document> {
+export interface CreateDocumentOptions {
+  title?: string;
+  content?: TipTapDocument;
+}
+
+export async function createDocument(
+  ownerId: UserId,
+  options: CreateDocumentOptions = {}
+): Promise<Document> {
   const { data, error } = await supabase
     .from("documents")
     .insert({
-      title: "Untitled Document",
-      content: EMPTY_DOCUMENT,
+      title: options.title ?? "Untitled Document",
+      content: options.content ?? EMPTY_DOCUMENT,
       owner_id: ownerId,
     })
     .select()
